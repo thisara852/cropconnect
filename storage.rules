@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isUnder5MB() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+
+    // Crop Listing Photos
+    match /crops/{farmerId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == farmerId && isImage() && isUnder5MB();
+    }
+
+    // User Avatar Photos
+    match /avatars/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() && request.auth.uid == userId && isImage() && isUnder5MB();
+    }
+
+    // Buyer Business BRN Verification Documents (Restricted access)
+    match /documents/{buyerId}/{allPaths=**} {
+      allow read: if isAuthenticated() && (request.auth.uid == buyerId || request.auth.token.role == 'admin');
+      allow write: if isAuthenticated() && request.auth.uid == buyerId && isUnder5MB();
+    }
+  }
+}
